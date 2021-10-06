@@ -2,6 +2,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <iostream>
+#include <set>
 #include <stdio.h>
 
 #define CMD_INIT 1
@@ -10,13 +12,102 @@
 #define CMD_CANCEL 4
 #define CMD_BEST_PROFIT 5
 
+using namespace std;
+#define MAX_STOCKS 6
+#define MAX_ORDERS 200001
+struct Order
+{
+    int orderId;
+    int quantity;
+    int price;
+    bool status; // true (bought), false (cancelled or not initialized)
+};
+Order orders[MAX_ORDERS];
+
+struct compareBuy
+{
+    bool operator()(Order *a, Order *b)
+    {
+        if (a->price > b->price)
+        {
+            return true;
+        }
+        if (a->price < b->price)
+        {
+            return false;
+        }
+        if (a->orderId < b->orderId)
+        {
+            return true;
+        }
+        return false;
+    }
+};
+
+struct compareSell
+{
+    bool operator()(Order *a, Order *b)
+    {
+        if (a->price < b->price)
+        {
+            return true;
+        }
+        if (a->price > b->price)
+        {
+            return false;
+        }
+        if (a->orderId < b->orderId)
+        {
+            return true;
+        }
+        return false;
+    }
+};
+
+struct Stock
+{
+    int maxProfit;
+    int minProfit;
+
+    int buyListSize;
+    int sellListSize;
+    set<Order *, compareBuy> buyList;
+    set<Order *, compareSell> sellList;
+};
+Stock stocks[MAX_STOCKS];
+
 void init()
 {
+    for (register int i = 0; i < MAX_ORDERS; i++)
+    {
+        orders[i].status = false;
+    }
+    for (register int i = 0; i < MAX_STOCKS; i++)
+    {
+        stocks[i].minProfit = 10000001;
+        stocks[i].maxProfit = 0;
+        stocks[i].buyListSize = 0;
+        stocks[i].sellListSize = 0;
+    }
 }
 
 int buy(int mNumber, int mStock, int mQuantity, int mPrice)
 {
-    return 0;
+    while (mQuantity > 0 && stocks[mStock].buyListSize > 0)
+    {
+    }
+
+    // buy list is empty; nothing to buy; add to buyList;
+    if (mQuantity > 0)
+    {
+        orders[mNumber].status = true;
+        orders[mNumber].orderId = mNumber;
+        orders[mNumber].price = mPrice;
+        orders[mNumber].quantity = mQuantity;
+        stocks[mStock].buyList.insert(orders);
+        stocks[mStock].buyListSize++;
+    }
+    return mQuantity;
 }
 
 int sell(int mNumber, int mStock, int mQuantity, int mPrice)
