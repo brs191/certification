@@ -78,11 +78,11 @@ Stock stocks[MAX_STOCKS];
 
 void init()
 {
-    for (register int i = 0; i < MAX_ORDERS; i++)
+    for (register int i = 1; i < MAX_ORDERS; i++)
     {
         orders[i].status = false;
     }
-    for (register int i = 0; i < MAX_STOCKS; i++)
+    for (register int i = 1; i < MAX_STOCKS; i++)
     {
         stocks[i].minPrice = 10000001;
         stocks[i].maxProfit = 0;
@@ -98,21 +98,26 @@ int buy(int mNumber, int mStock, int mQuantity, int mPrice)
         // auto it = stocks[mStock].sellList.begin();
         set<Order *, compareSell>::iterator itr = stocks[mStock].sellList.begin();
         Order *order = *itr;
-        if (order->status == false) {
+        if (order->status == false)
+        {
             stocks[mStock].sellList.erase(itr);
             stocks[mStock].sellListSize--;
             continue;
         }
-        if (mPrice < order->price) {
+        if (mPrice < order->price)
+        {
             break;
         }
-        if (mQuantity >= order->quantity) {
+        if (mQuantity >= order->quantity)
+        {
             mQuantity = mQuantity - order->quantity;
             order->quantity = 0;
             order->status = false;
             stocks[mStock].sellList.erase(itr);
             stocks[mStock].sellListSize--;
-        } else {
+        }
+        else
+        {
             order->quantity = order->quantity - mQuantity;
             mQuantity = 0;
         }
@@ -135,24 +140,30 @@ int buy(int mNumber, int mStock, int mQuantity, int mPrice)
 
 int sell(int mNumber, int mStock, int mQuantity, int mPrice)
 {
-    while (mQuantity > 0 && stocks[mStock].buyListSize > 0) {
+    while (mQuantity > 0 && stocks[mStock].buyListSize > 0)
+    {
         set<Order *, compareBuy>::iterator itr = stocks[mStock].buyList.begin();
         Order *order = *itr;
-        if (order->status) {
+        if (order->status == false)
+        {
             stocks[mStock].buyList.erase(itr);
             stocks[mStock].buyListSize--;
             continue;
         }
-        if (mPrice > order->price) {
+        if (mPrice > order->price)
+        {
             break;
         }
-        if (mQuantity >= order->quantity) {
+        if (mQuantity >= order->quantity)
+        {
             mQuantity = mQuantity - order->quantity;
             order->quantity = 0;
             order->status = false;
             stocks[mStock].buyList.erase(itr);
             stocks[mStock].buyListSize--;
-        } else {
+        }
+        else
+        {
             order->quantity = order->quantity - mQuantity;
             mQuantity = 0;
         }
@@ -160,7 +171,8 @@ int sell(int mNumber, int mStock, int mQuantity, int mPrice)
         stocks[mStock].maxProfit = max(stocks[mStock].maxProfit, order->price - stocks[mStock].minPrice);
     }
 
-    if (mQuantity > 0) {
+    if (mQuantity > 0)
+    {
         orders[mNumber].status = true;
         orders[mNumber].orderId = mNumber;
         orders[mNumber].price = mPrice;
@@ -256,6 +268,10 @@ int main()
 
     for (int tc = 1; tc <= T; tc++)
     {
+        if (tc == 3)
+        {
+            printf("Bug here!!");
+        }
         int score = run() ? MARK : 0;
         printf("#%d %d\n", tc, score);
     }
