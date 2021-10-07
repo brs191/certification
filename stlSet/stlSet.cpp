@@ -77,15 +77,28 @@ void setTest()
         temp->val = input[i];
         myset.insert(temp);
     }
-    temp = getNode();
-    temp->idx = 999;
-    temp->val = 999;
-    myset.insert(temp);
 
     temp = getNode();
     temp->idx = 1;
     temp->val = 1;
     myset.insert(temp);
+
+    temp = getNode();
+    temp->idx = 9991;
+    temp->val = 999;
+    myset.insert(temp);
+
+    for (auto it = myset.begin(); it != myset.end(); it++)
+    {
+        node *t = *it;
+        cout << t->val << "\t";
+    }
+    cout << "\nset Test " << endl;
+
+    set<node *, compare>::iterator lbitr = myset.lower_bound(temp);
+    cout << (*lbitr)->idx << " " << (*lbitr)->val << endl;
+
+    myset.erase(lbitr);
 
     for (auto it = myset.begin(); it != myset.end(); it++)
     {
