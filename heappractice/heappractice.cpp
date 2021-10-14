@@ -10,17 +10,8 @@ void heapInit(void)
     heapSize = 0;
 }
 
-int heapPush(int value)
+void shiftUp(int current)
 {
-    if (heapSize + 1 > MAX_SIZE)
-    {
-        printf("queue is full!");
-        return 0;
-    }
-
-    heap[heapSize] = value;
-
-    int current = heapSize;
     while (current > 0 && heap[current] < heap[(current - 1) / 2])
     {
         int temp = heap[(current - 1) / 2];
@@ -28,25 +19,10 @@ int heapPush(int value)
         heap[current] = temp;
         current = (current - 1) / 2;
     }
-
-    heapSize = heapSize + 1;
-
-    return 1;
 }
 
-int heapPop(int *value)
+void shiftDown(int current)
 {
-    if (heapSize <= 0)
-    {
-        return -1;
-    }
-
-    *value = heap[0];
-    heapSize = heapSize - 1;
-
-    heap[0] = heap[heapSize];
-
-    int current = 0;
     while (current * 2 + 1 < heapSize)
     {
         int child;
@@ -70,25 +46,101 @@ int heapPop(int *value)
 
         current = child;
     }
+}
+
+int heapPush(int value)
+{
+    if (heapSize + 1 > MAX_SIZE)
+    {
+        printf("queue is full!");
+        return 0;
+    }
+
+    heap[heapSize] = value;
+
+    int current = heapSize;
+    shiftUp(heapSize);
+    heapSize = heapSize + 1;
+
     return 1;
+}
+
+int heapPop(int *value)
+{
+    if (heapSize <= 0)
+    {
+        return -1;
+    }
+
+    *value = heap[0];
+    heapSize = heapSize - 1;
+
+    heap[0] = heap[heapSize];
+
+    int current = 0;
+    shiftDown(current);
+    return 1;
+}
+
+int heapTop()
+{
+    return heap[0];
+}
+void heapModify(int pos)
+{
+    int idx = pos;
+    shiftUp(idx);
+    shiftDown(idx);
+}
+
+void heapDelete(int pos)
+{
+    heap[pos] = heap[heapSize - 1];
+    shiftDown(pos);
+    shiftUp(pos);
 }
 
 int N = 10;
 int main(int argc, char *argv[])
 {
+    int input[] = {2, 5, 23, 56, 82, 70, 3, 7, 10, 22, 47};
     heapInit();
 
-    for (int i = 1; i <= N; i++)
+    int inputlen = sizeof(input) / sizeof(input[0]);
+    for (int i = 0; i < inputlen; i++)
     {
-        heapPush(i);
+        heapPush(input[i]);
     }
 
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < inputlen; i++)
     {
         int value;
         heapPop(&value);
         printf("%d ", value);
     }
-    printf("\nheap Done\n");
+    printf("\nheap Done0\n");
+
+    heapInit();
+
+    for (int i = 0; i < inputlen; i++)
+    {
+        heapPush(input[i]);
+    }
+
+    printf("modify: %d\n", heap[6]);
+    heap[6] = 77;
+    heapModify(6);
+
+    printf("delete: %d\n", heap[2]);
+    heapDelete(2);
+
+    for (int i = 0; i < inputlen; i++)
+    {
+        int value;
+        heapPop(&value);
+        printf("%d ", value);
+    }
+    printf("\nheap Done1\n");
+
     return 0;
 }
