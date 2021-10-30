@@ -27,12 +27,15 @@ void unOrderMap()
 {
     unordered_map<string, string> mymap;
     mymap = {{"India", "New Delhi"}, {"U.S.", "Washington"}, {"France", "Paris"}};
-    unordered_map<string, string>::iterator itr = mymap.begin();
-    for (; itr != mymap.end(); itr++)
-    {
-        cout << itr->first << " :: " << itr->second << endl;
-    }
-    cout << "bucket count " << mymap.bucket_count() << endl;
+
+    mymap.insert("Hi", "Hello"
+});
+unordered_map<string, string>::iterator itr = mymap.begin();
+for (; itr != mymap.end(); itr++)
+{
+    cout << itr->first << " :: " << itr->second << endl;
+}
+cout << "bucket count " << mymap.bucket_count() << endl;
 }
 
 // https://www.geeksforgeeks.org/sorting-a-vector-in-c/
@@ -137,12 +140,6 @@ void vectorTest()
     cout << endl;
 }
 
-void sliceTest()
-{
-    valarray<int> myslice;
-    // todo; ^^
-}
-
 int main()
 {
     stringConversion();
@@ -151,5 +148,4 @@ int main()
     permutations();
     setS();
     vectorTest();
-    sliceTest();
 }

@@ -3,15 +3,13 @@
 #endif
 
 #include <stdio.h>
+#include <unordered_map>
+
+using namespace std;
 
 #define INPUTWORD (100)
 #define RECOMMEND (200)
 #define BANWORD (300)
-
-const int MAX_WORDS = 25000;
-const int MAX_NODES = 500001;
-const int STR_LEN = 20;
-const int ALPHABET = 26;
 
 int mstrcpy(char dst[], const char src[])
 {
@@ -38,60 +36,95 @@ int mstrcmp(const char str1[], const char str2[])
     return str1[c] - str2[c];
 }
 
-struct word
+const int MAX_WORDS = 25000;
+const int MAX_NODES = 500001;
+const int STR_LEN = 20;
+const int ALPHABET = 26;
+
+struct Word
 {
-    char w[20];
+    char word[STR_LEN];
     int freq;
-    int ban;
-    int idx;
-    int ts;
-
-    struct word *prev;
-    struct word *next;
+    int index;
+    bool is_banned;
+    int time_stamp;
+    Word *next;
+    Word *prev;
 };
-word Words[MAX_WORDS];
-int wordCnt = 0;
-int timestamp = 0;
-word *newWord(char mWord[20])
+
+Word words[MAX_WORDS];
+int word_cnt;
+int ts;
+
+bool Compare(int idx1, int idx2)
 {
-    word *n = &Words[wordCnt++];
-    n->ban = 0;
-    n->freq = 1;
-    n->ts = timestamp;
-    n->idx = wordCnt - 1;
-    mstrcpy(n->w, mWord);
+    if (words[idx1].is_banned == true)
+        return false;
+    if (words[idx1].is_banned == false && words[idx2].is_banned == true)
+        return true;
+    if (words[idx1].freq > words[idx2].freq)
+        return true;
+    if (words[idx1].freq < words[idx2].freq)
+        return false;
 
-    n->prev = 0;
-    n->next = 0;
+    if (words[idx1].time_stamp > words[idx2].time_stamp)
+        return true;
+    else
+        return false;
+}
 
-    return n;
-};
+Word *getWord(char word[STR_LEN], int ts)
+{
+    Word *temp = &words[word_cnt++];
+    mstrcpy(temp->word, word);
+    temp->index = word_cnt - 1;
+    temp->is_banned = false;
+    temp->next = 0;
+    temp->prev = 0;
+    temp->freq = 1;
+    temp->time_stamp = ts;
+    return temp;
+}
 
 struct Hash
 {
-    word *head;
+    Word *head;
 
     void init()
     {
         head = 0;
     }
 
-    void add(word *n)
+    void addWord(Word *node)
     {
         if (head)
         {
-            n->next = head;
-            head->prev = n;
+            node->next = head;
+            head->prev = node;
         }
-        head = n;
+        head = node;
     }
 
-    word *find(char mWord[20])
+    void removeWord(Word *node)
     {
-        word *curr = head;
+        if (head == node)
+        {
+            head = head->next;
+            return;
+        }
+
+        if (node->prev)
+            node->prev->next = node->next;
+        if (node->next)
+            node->next->prev = node->prev;
+    }
+
+    Word *searcWord(char word[STR_LEN])
+    {
+        Word *curr = head;
         while (curr)
         {
-            if (mstrcmp(curr->w, mWord) == 0)
+            if (mstrcmp(curr->word, word) == 0)
             {
                 return curr;
             }
@@ -99,27 +132,9 @@ struct Hash
         }
         return 0;
     }
-
-    void removeHash(word *n)
-    {
-        if (head == n)
-        {
-            head = head->next;
-            head->prev = 0;
-            return;
-        }
-        if (n->prev)
-        {
-            n->prev->next = n->next;
-        }
-        if (n->next)
-        {
-            n->next->prev = n->prev;
-        }
-    }
 };
-Hash wordMap[MAX_WORDS];
 
+Hash ht[MAX_WORDS];
 unsigned long getHash(char *str)
 {
     unsigned long hash = 5381;
@@ -129,229 +144,174 @@ unsigned long getHash(char *str)
     return hash % MAX_WORDS;
 }
 
-struct trie
+struct Trie
 {
-    int eow;
-    int mostFreqIdx;
-
-    struct trie *child[26];
-    struct trie *parent;
+    bool is_word;
+    int index;
+    Trie *parent;
+    Trie *child[ALPHABET];
 };
-trie TRIE[MAX_NODES];
-int trieCnt = 0;
-trie *newTrie()
+
+Trie nodes[MAX_NODES];
+int trie_counter;
+
+Trie *getNode()
 {
-    trie *n = &TRIE[trieCnt++];
-    n->eow = 0;
-    n->mostFreqIdx = -1;
-
-    for (int i = 0; i < 26; i++)
+    Trie *temp = &nodes[trie_counter++];
+    temp->is_word = false;
+    temp->index = -1;
+    for (register int i = 0; i < 26; i++)
     {
-        n->child[i] = 0;
+        temp->child[i] = 0;
     }
-    n->parent = 0;
-    return n;
-}
-trie *root;
-
-bool compare(int idx1, int idx2)
-{ // child, parent
-    if (Words[idx1].ban == true)
-    {
-        return false;
-    }
-    if (Words[idx2].ban == true)
-    {
-        return false;
-    }
-    if (Words[idx1].freq > Words[idx2].freq)
-    {
-        return true;
-    }
-    if (Words[idx1].freq < Words[idx2].freq)
-    {
-        return false;
-    }
-    if (Words[idx1].ts > Words[idx2].ts)
-    {
-        return true;
-    }
-    return false;
+    return temp;
 }
 
-void insertT(char mWord[20], int wordIdx)
-{
-    trie *curr = root;
+Trie *root;
 
-    for (int i = 0; mWord[i] != '\0'; i++)
+void insert(char mWord[20], int word_index)
+{
+    Trie *curr = root;
+    register int i = 0;
+    while (mWord[i] != 0)
     {
-        int offset = mWord[i] - 'a';
-        if (curr->child[offset] == 0)
+        int index = mWord[i] - 'a';
+        if (curr->child[index] == 0)
         {
-            curr->child[offset] = newTrie();
+            curr->child[index] = getNode();
         }
-        curr->child[offset]->parent = curr;
-        if (compare(wordIdx, curr->child[offset]->mostFreqIdx)) //update child mostFreqIdx with parent Idx
-            curr->child[offset]->mostFreqIdx = wordIdx;
-        curr = curr->child[offset];
+        curr->child[index]->parent = curr;
+        if (true == Compare(word_index, curr->child[index]->index))
+            curr->child[index]->index = word_index;
+        curr = curr->child[index];
+        i++;
     }
-    curr->eow = 1;
 }
 
-trie *searchT(char mWord[20])
+void UpdateParent(Trie *root, int ban_index)
 {
-    trie *curr = root;
-    for (int i = 0; mWord[i] != '\0'; i++)
+    if (root == 0)
     {
-        int offset = mWord[i] - 'a';
-        if (curr->child[offset] == 0)
-        {
-            return 0;
-        }
-        curr = curr->child[offset];
-    }
-    return curr;
-}
-
-void UpdateParent(trie *node, int banIdx)
-{
-    if (node == 0)
         return;
+    }
 
-    node->mostFreqIdx = -1;
-    int i = 0;
-    for (; i < 26; i++)
+    root->index = -1;
+    register int i = 0;
+    for (; i < ALPHABET; i++)
     {
-        if (node->child[i] != 0)
+        if (root->child[i] != 0)
         {
-            if (node->child[i]->mostFreqIdx == -1)
+            if (root->child[i]->index == -1)
                 continue;
-            node->mostFreqIdx = node->child[i]->mostFreqIdx;
+            root->index = root->child[i]->index;
             break;
         }
     }
-    for (; i < 26; i++)
+
+    for (; i < ALPHABET; i++)
     {
-        if (node->child[i] != 0)
+        if (root->child[i] != 0)
         {
-            if (node->child[i]->mostFreqIdx == -1)
-                continue;
-            if (compare(node->child[i]->mostFreqIdx, node->mostFreqIdx))
+            if (root->child[i]->index == -1)
             {
-                node->mostFreqIdx = node->child[i]->mostFreqIdx;
+                continue;
+            }
+            if (true == Compare(root->child[i]->index, root->index))
+            {
+                root->index = root->child[i]->index;
             }
         }
     }
-
-    if (node->parent && node->parent->mostFreqIdx == banIdx)
-    {
-        UpdateParent(node->parent, banIdx);
-    }
+    if (root->parent && root->parent->index == ban_index)
+        UpdateParent(root->parent, ban_index);
 }
 
-int updatebanword(char mWord[20], int banIdx)
+int search(char mWord[20], int ban_index, bool is_banword = false)
 {
-    trie *curr = root;
-    for (int i = 0; mWord[i] != '\0'; i++)
-    {
-        int offset = mWord[i] - 'a';
-        if (curr->child[offset] == 0)
-        {
-            return -1;
-        }
-        curr = curr->child[offset];
-    }
-    if (banIdx == curr->mostFreqIdx)
-    {
-        UpdateParent(curr, banIdx);
-    }
-    return curr->mostFreqIdx;
-}
 
+    Trie *curr = root;
+    register int i = 0;
+    while (mWord[i] != 0)
+    {
+        int idx = mWord[i] - 'a';
+        if (curr->child[idx] == 0)
+            return -1;
+        curr = curr->child[idx];
+        i++;
+    }
+
+    if (is_banword == false)
+        return curr->index;
+
+    if (ban_index == curr->index)
+    {
+        UpdateParent(curr, ban_index);
+    }
+    return curr->index;
+}
 void init()
 {
-    wordCnt = 0;
-    timestamp = 0;
-    trieCnt = 0;
-    for (int i = 0; i < MAX_WORDS; i++)
+    word_cnt = 0;
+    trie_counter = 0;
+    ts = 0;
+    for (register int i = 0; i < MAX_WORDS; i++)
     {
-        wordMap[i].init();
+        ht[i].init();
     }
-    root = newTrie();
+
+    root = getNode();
 }
 
 void inputWord(char mWord[20])
 {
-    timestamp++;
-    word *n = 0;
-    unsigned long h = getHash(mWord);
-
-    n = wordMap[h].find(mWord);
-    if (n)
+    ts++;
+    int h = getHash(mWord);
+    Word *word = ht[h].searcWord(mWord);
+    if (word)
     {
-        if (!n->ban)
+        if (word->is_banned == false)
         {
-            n->freq++;
-            n->ts = timestamp;
+            word->freq++;
+            word->time_stamp = ts;
         }
     }
     else
     {
-        n = newWord(mWord);
-        wordMap[h].add(n);
+        word = getWord(mWord, ts);
+        ht[h].addWord(word);
     }
-
-    if (!n->ban)
-    {
-        insertT(mWord, n->idx);
-    }
+    if (word->is_banned == false)
+        insert(mWord, word->index);
 }
 
 int recommend(char mUser[20], char mAnswer[20])
 {
-    trie *n = searchT(mUser);
-    if (n == 0 || Words[n->mostFreqIdx].ban)
+    int index = search(mUser, -1);
+    if (index == -1 || words[index].is_banned == true)
     {
-        mstrcpy(mAnswer, mUser);
-        return mstrlen(mAnswer);
+        int len = mstrcpy(mAnswer, mUser);
+        return len;
     }
-    mstrcpy(mAnswer, Words[n->mostFreqIdx].w);
-    return mstrlen(mAnswer);
+    int len = mstrcpy(mAnswer, words[index].word);
+    return len;
 }
 
 void banWord(char mWord[20])
 {
-    unsigned long h = getHash(mWord);
-    word *n = wordMap[h].find(mWord);
-    if (n)
+    int h = getHash(mWord);
+    Word *word = ht[h].searcWord(mWord);
+    if (word)
     {
-        n->ban = 1;
+        word->is_banned = true;
     }
     else
     {
-        n = newWord(mWord);
-        n->ban = 1;
-        wordMap[h].add(n);
+        word = getWord(mWord, ts);
+        word->is_banned = true;
+        ht[h].addWord(word);
     }
-
-    updatebanword(mWord, n->idx);
+    search(mWord, word->index, true);
 }
-
-// static int mstrcmp(const char str1[], const char str2[])
-// {
-//     int c = 0;
-//     while (str1[c] != 0 && str1[c] == str2[c])
-//         ++c;
-//     return str1[c] - str2[c];
-// }
-
-// static int mstrlen(const char str[])
-// {
-//     int ret = 0;
-//     while (str[ret])
-//         ++ret;
-//     return ret;
-// }
 
 static int run()
 {
@@ -397,7 +357,7 @@ static int run()
 int main()
 {
     setbuf(stdout, NULL);
-    freopen("input30.txt", "r", stdin);
+    freopen("sample_input.txt", "r", stdin);
 
     int T, MARK;
     scanf("%d %d", &T, &MARK);

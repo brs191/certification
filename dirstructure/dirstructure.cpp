@@ -48,6 +48,11 @@ void makedir(char path[], char dirname[])
     dirCnt++;
 }
 
+void makeLine(char path1[], char path2[])
+{
+    dir[pathMap[path2]].next.push_back(&dir[pathMap[path1]]);
+}
+
 void dirDFS(char path[])
 {
     int pIdx = pathMap[path];

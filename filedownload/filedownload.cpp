@@ -2,7 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <stdio.h>
+// #include <stdio.h>
 #include <string.h>
 #include <iostream>
 #include <list>
@@ -28,38 +28,64 @@ const string delim = "/";
 const int SYM_LINK = 1;
 const int SYS_FILE = 2;
 
-struct dir
+struct DIRINFO
 {
-    int type;
+    int safeTime;
     string path;
-    list<dir *> next;
+    list<DIRINFO *> next;
 };
-dir Dir[MAX_FILES];
+DIRINFO dir[MAX_FILES];
 int dirCnt = 0;
 
 unordered_map<string, int> pathMap;
 
 void init()
 {
+    pathMap.clear();
+    for (int i = 0; i < dirCnt; i++)
+    {
+        dir[i].next.clear();
+    }
     dirCnt = 0;
+    dir[dirCnt].path = delim;
+    pathMap[delim] = dirCnt;
+    dirCnt++;
+}
+
+void dirDFS(char path[])
+{
+    int pIdx = pathMap[path];
+    while (pIdx < dirCnt)
+    {
+        DIRINFO *curr = &dir[pIdx];
+        for (auto it = curr->next.begin(); it != curr->next.end(); it++)
+        {
+            DIRINFO *temp = *it;
+            cout << temp->path << " ";
+        }
+        cout << endl;
+        pIdx++;
+    }
 }
 
 void makeDir(char path[], char dirname[])
 {
-    int pathIdx = pathMap[path];
-    int dirIdx = dirCnt;
-    dirCnt++;
+    dir[dirCnt].path = (string)path + dirname + delim;
+    pathMap[dir[dirCnt].path] = dirCnt;
 
-    Dir[dirIdx].path = (string)path + dirname + delim;
-    pathMap[Dir[dirIdx].path] = dirIdx;
+    dir[pathMap[path]].next.push_back(&dir[dirCnt]);
+    dir[dirCnt].next.push_back(&dir[pathMap[path]]);
+    dirCnt++;
 }
 
 void makeLink(char path1[], char path2[])
 {
+    dir[pathMap[path2]].next.push_back(&dir[pathMap[path1]]);
 }
 
 void makeSystemFile(char path[])
 {
+    dirDFS("/");
 }
 
 void findDownloadDir(char downloadPath[])

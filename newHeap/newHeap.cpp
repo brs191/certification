@@ -13,9 +13,6 @@
     2. child = Compare(heap[(current << 1) + 1], heap[(current << 1) + 2]) ? (current << 1) + 1 : (current << 1) + 2;
     3. if (Compare(heap[current], heap[child]))
 */
-#define MODULO 1000
-int dupCheck[MODULO];
-
 #define MAX_SIZE 10
 int input[MAX_SIZE];
 
@@ -30,6 +27,17 @@ struct node
 };
 node Nodes[MAX_SIZE];
 int nodeCnt = 0;
+
+bool Compare(node *n1, node *n2)
+{ // true means replaces
+    if (n1->val < n2->val)
+        return true;
+    if (n1->val > n2->val)
+        return false;
+    if (n1->idx < n2->idx)
+        return true;
+    return false;
+}
 
 node *newNode(int val)
 {
@@ -54,17 +62,6 @@ struct Heap
         heapSize = 0;
     }
 
-    bool compare(node *n1, node *n2)
-    {
-        if (n1->val > n2->val)
-            return true;
-        if (n1->val < n2->val)
-            return false;
-        if (n1->idx > n2->idx)
-            return true;
-        return false;
-    }
-
     int heapPush(node *value)
     {
         if (heapSize + 1 > MAX_SIZE)
@@ -81,7 +78,7 @@ struct Heap
 
     void ShiftUp(int current)
     {
-        while (current > 0 && compare(heap[current], heap[(current - 1) / 2])) // compare parent and child
+        while (current > 0 && Compare(heap[current], heap[(current - 1) / 2])) // compare parent and child
         {
             node *temp = heap[(current - 1) / 2];
             heap[(current - 1) / 2] = heap[current];
@@ -118,10 +115,10 @@ struct Heap
             }
             else
             {
-                child = compare(heap[current * 2 + 1], heap[current * 2 + 2]) ? current * 2 + 1 : current * 2 + 2;
+                child = Compare(heap[current * 2 + 1], heap[current * 2 + 2]) ? current * 2 + 1 : current * 2 + 2;
             }
 
-            if (compare(heap[current], heap[child]))
+            if (Compare(heap[current], heap[child]))
             {
                 break;
             }
@@ -141,72 +138,54 @@ struct Heap
         return heap[0];
     }
 
-    void deleteNode(node *val)
+    void deleteFrom(node *value)
     {
-        int idx = val->pos;
-        heap[idx] = heap[heapSize--];
+        int idx = value->pos;
+        heapSize = heapSize - 1;
+        heap[idx] = heap[heapSize];
         heap[idx]->pos = idx;
         ShiftDown(idx);
         ShiftUp(idx);
     }
 
-    void modifyNode(node *val)
+    void modifyHeap(node *value)
     {
-        ShiftUp(val->pos);
-        ShiftDown(val->pos);
+        ShiftUp(value->pos);
+        ShiftDown(value->pos);
     }
 };
 Heap HEAP;
 
-void insertionSort(void)
-{
-    int temp;
-    int i;
-    int j;
-
-    for (i = 1; i < MAX_SIZE; i++)
-    {
-        temp = input[i];
-        j = i - 1;
-
-        while ((j >= 0) && (temp > input[j]))
-        {
-            input[j + 1] = input[j];
-            j = j - 1;
-        }
-        input[j + 1] = temp;
-    }
-}
-
 int main(int argc, char *argv[])
 {
-    srand(time(NULL));
-    int r = rand() % MODULO;
-
-    for (int i = 0; i < MODULO; i++)
-    {
-        dupCheck[i] = 0;
-    }
+    int input[] = {2, 5, 23, 56, 82, 70, 3, 7, 10, 22, 47};
+    int inputlen = sizeof(input) / sizeof(input[0]);
 
     node *n = 0;
-    for (int i = 0; i < MAX_SIZE; i++)
+    for (int i = 0; i < inputlen; i++)
     {
-        r = rand() % MODULO;
-        while (dupCheck[r])
-        {
-            r = rand() % MODULO;
-        }
-        dupCheck[r] = r;
-        input[i] = r;
-        n = newNode(r);
+        n = newNode(input[i]);
         HEAP.heapPush(n);
     }
 
-    insertionSort();
+    //insertionSort();
+    node *t = HEAP.Top();
+    printf("top is %d\n", t->val);
+
+    Nodes[0].val = 6;
+    HEAP.modifyHeap(&Nodes[0]);
+    t = HEAP.Top();
+    printf("top is %d\n", t->val);
+
+    Nodes[1].val = 1;
+    HEAP.modifyHeap(&Nodes[1]);
+    t = HEAP.Top();
+    printf("top is %d\n", t->val);
+
     for (int i = 0; i < MAX_SIZE; i++)
     {
         HEAP.heapPop(&n);
-        printf("%d:%d ", n->val, input[i]);
+        printf("%d ", n->val);
     }
     printf("\n");
 

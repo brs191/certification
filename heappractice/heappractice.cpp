@@ -95,7 +95,7 @@ void heapModify(int pos)
 
 void heapDelete(int pos)
 {
-    heap[pos] = heap[heapSize - 1];
+    heap[pos] = heap[--heapSize];
     shiftDown(pos);
     shiftUp(pos);
 }
@@ -133,6 +133,8 @@ int main(int argc, char *argv[])
 
     printf("delete: %d\n", heap[2]);
     heapDelete(2);
+
+    printf("Heap Top is %d\n", heapTop());
 
     for (int i = 0; i < inputlen; i++)
     {
