@@ -46,9 +46,14 @@ void init(int n, int m, int mMap[MAX_MAP_SIZE][MAX_MAP_SIZE])
     {
         for (int c = 0; c < N; c++)
         {
+            if (mMap[r][c] + OFFSET == 29404)
+            {
+                cout << r << "," << c << "  "
+                     << " pVal=" << mMap[r][c] + OFFSET << endl;
+            }
             MAP[r][c] = mMap[r][c] + OFFSET;
             points[pointsCnt].first = r;
-            points[pointsCnt].first = c;
+            points[pointsCnt].second = c;
             pointsMap[MAP[r][c]].push_back(&points[pointsCnt]);
             pointsCnt++;
         }
@@ -67,11 +72,11 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         for (int j = 0; j < M; j++)
         {
             P[0].PIX[i][j] = mPic[i][j] + OFFSET;
-            cout << P[0].PIX[i][j] << " ";
+            // cout << P[0].PIX[i][j] << " ";
         }
-        cout << endl;
+        // cout << endl;
     }
-    cout << endl;
+    // cout << endl;
 
     int k = M - 1;
     int l = 0;
@@ -81,13 +86,13 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         for (int j = 0; j < M; j++)
         {
             P[1].PIX[i][j] = P[0].PIX[k][l];
-            cout << P[1].PIX[i][j] << " ";
+            // cout << P[1].PIX[i][j] << " ";
             k--;
         }
         l++;
-        cout << endl;
+        // cout << endl;
     }
-    cout << endl;
+    // cout << endl;
 
     k = M - 1;
     l = 0;
@@ -97,13 +102,13 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         for (int j = 0; j < M; j++)
         {
             P[2].PIX[i][j] = P[1].PIX[k][l];
-            cout << P[2].PIX[i][j] << " ";
+            // cout << P[2].PIX[i][j] << " ";
             k--;
         }
         l++;
-        cout << endl;
+        // cout << endl;
     }
-    cout << endl;
+    // cout << endl;
 
     k = M - 1;
     l = 0;
@@ -113,17 +118,89 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         for (int j = 0; j < M; j++)
         {
             P[3].PIX[i][j] = P[2].PIX[k][l];
-            cout << P[3].PIX[i][j] << " ";
+            // cout << P[3].PIX[i][j] << " ";
             k--;
         }
         l++;
-        cout << endl;
+        // cout << endl;
     }
-    cout << endl;
+    // cout << endl;
 }
 
-bool checkPic(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE], int P[MAX_PIC_SIZE][MAX_PIC_SIZE], int r, int c)
+bool valid(int r, int c)
 {
+    if (r >= 0 && r < MAX_PIC_SIZE && c >= 0 && c < MAX_PIC_SIZE)
+        return true;
+    return false;
+}
+
+bool checkPic(int pix[MAX_PIC_SIZE][MAX_PIC_SIZE], int r, int c)
+{
+    bool match = false;
+    // N is map; M is pix; (r,c) MAP co-ordinates;
+    int r2 = r + M - 1;
+    int c2 = c + M - 1;
+    // invalidate r2, c2;
+    if (valid(r2, c2) == false)
+    {
+        return false;
+    }
+    // all four cornors are a match
+    if (abs(pix[0][0] - MAP[r][c]) < 256 &&
+        abs(pix[0][M - 1] - MAP[r][c2]) < 256 &&
+        abs(pix[M - 1][0] - MAP[r2][c]) < 256 &&
+        abs(pix[M - 1][M - 1] - MAP[r2][c2]) < 256)
+    {
+        match = true;
+        int k = 0;
+        int l = 0;
+        for (int x = r; x < r2; x++)
+        {
+            l = 0;
+            for (int y = c; y < c2; y++)
+            {
+                if (abs(pix[k][l] - MAP[x][y]) >= 256)
+                {
+                    match = false;
+                    return false;
+                }
+                l++;
+            }
+            k++;
+        }
+        if (match == true)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool findWithPVal(int pVal, int pix[MAX_PIC_SIZE][MAX_PIC_SIZE], RESULT *ret)
+{
+    int r = 0;
+    int c = 0;
+    unordered_map<int, list<POINT *>>::iterator it = pointsMap.find(pVal);
+    if (it != pointsMap.end())
+    {
+        list<POINT *> plist = it->second;
+        list<POINT *>::iterator itr = plist.begin();
+        POINT *p = 0;
+        while (itr != plist.end())
+        {
+            p = *itr;
+            r = p->first;
+            c = p->second;
+            if (checkPic(pix, r, c) == true)
+            {
+                ret->r = r;
+                ret->c = c;
+                return true;
+            }
+            itr++;
+        }
+    }
+    return false;
 }
 
 RESULT findPosition(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
@@ -137,20 +214,36 @@ RESULT findPosition(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
     // for each intensity
     int r = 0;
     int c = 0;
-    for (int i = 0; i < 256; i++)
+    for (int j = 0; j < 4; j++)
     {
-        int pVal = P[0].PIX[0][0];
-        unordered_map<int, list<POINT *>>::iterator it = pointsMap.find(pVal);
-        list<POINT *> plist = it->second;
-        list<POINT *>::iterator itr = plist.begin();
-        POINT *p = 0;
-        while (itr != plist.end())
+        for (int i = 0; i < 256; i++)
         {
-            p = *itr;
-            r = p.first;
-            c = p.second;
-            checkPic(mPic, P[0], r, c);
-            itr++;
+            int pVal = P[j].PIX[0][0] + i;
+            if (pVal == 590) //29404)
+            {
+                cout << "start from here" << endl;
+            }
+
+            unordered_map<int, list<POINT *>>::iterator it = pointsMap.find(pVal);
+            if (it != pointsMap.end())
+            {
+                list<POINT *> plist = it->second;
+                list<POINT *>::iterator itr = plist.begin();
+                POINT *p = 0;
+                while (itr != plist.end())
+                {
+                    p = *itr;
+                    r = p->first;
+                    c = p->second;
+                    if (checkPic(pix, r, c) == true)
+                    {
+                        ret->r = r;
+                        ret->c = c;
+                        return true;
+                    }
+                    itr++;
+                }
+            }
         }
     }
     return ret;
