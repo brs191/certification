@@ -7,6 +7,7 @@
 #include <iostream>
 #include <list>
 #include <unordered_map>
+#include <queue>
 
 #define NAMELEN 11
 #define PATHLEN 1001
@@ -28,68 +29,136 @@ const string delim = "/";
 const int SYM_LINK = 1;
 const int SYS_FILE = 2;
 
+const int MAXOBJ = 10001;
+
 struct DIRINFO
 {
     int safeTime;
-    string path;
-    list<DIRINFO *> next;
+    string name;
+    list<DIRINFO *> nextTo;
 };
-DIRINFO dir[MAX_FILES];
+DIRINFO dir[MAXOBJ];
 int dirCnt = 0;
 
 unordered_map<string, int> pathMap;
 
 void init()
 {
-    pathMap.clear();
-    for (int i = 0; i < dirCnt; i++)
-    {
-        dir[i].next.clear();
-    }
     dirCnt = 0;
-    dir[dirCnt].path = delim;
+    pathMap.clear();
+    for (int i = 0; i < MAXOBJ; i++)
+    {
+        dir[i].nextTo.clear();
+        dir[i].safeTime = MAXOBJ;
+    }
+    dir[dirCnt].name = delim;
     pathMap[delim] = dirCnt;
     dirCnt++;
 }
 
-void dirDFS(char path[])
+void updateSafeTime(int idx)
 {
-    int pIdx = pathMap[path];
-    while (pIdx < dirCnt)
+    DIRINFO *que[MAXOBJ];
+    que[0] = &dir[idx];
+
+    int start = 0;
+    int end = 1;
+
+    while (true)
     {
-        DIRINFO *curr = &dir[pIdx];
-        for (auto it = curr->next.begin(); it != curr->next.end(); it++)
+        int curr = end;
+
+        for (int i = start; i < end; i++)
         {
-            DIRINFO *temp = *it;
-            cout << temp->path << " ";
+            DIRINFO *pDir = que[i];
+            for (auto it = pDir->nextTo.begin(); it != pDir->nextTo.end(); it++)
+            {
+                DIRINFO *cDir = *it;
+                if (cDir->safeTime > pDir->safeTime + 1)
+                {
+                    cDir->safeTime = pDir->safeTime + 1;
+                    que[curr] = cDir;
+                    curr++;
+                }
+            }
         }
-        cout << endl;
-        pIdx++;
+        if (end == curr)
+            break;
+
+        start = end;
+        end = curr;
+    }
+}
+
+// asdf
+void updateSafeTimeQ(int idx)
+{
+    queue<DIRINFO *> q;
+    q.push(&dir[idx]);
+
+    while (!q.empty())
+    {
+        DIRINFO *pDir = q.front();
+        q.pop();
+        for (auto it = pDir->nextTo.begin(); it != pDir->nextTo.end(); it++)
+        {
+            DIRINFO *cDir = *it;
+            if (cDir->safeTime > pDir->safeTime + 1)
+            {
+                cDir->safeTime = pDir->safeTime + 1;
+                q.push(cDir);
+            }
+        }
     }
 }
 
 void makeDir(char path[], char dirname[])
 {
-    dir[dirCnt].path = (string)path + dirname + delim;
-    pathMap[dir[dirCnt].path] = dirCnt;
+    int pathIdx = pathMap[(string)path];
 
-    dir[pathMap[path]].next.push_back(&dir[dirCnt]);
-    dir[dirCnt].next.push_back(&dir[pathMap[path]]);
+    dir[dirCnt].name = (string)path + dirname + delim;
+    dir[dirCnt].safeTime = dir[pathIdx].safeTime + 1;
+
+    pathMap[(string)path + dirname + delim] = dirCnt;
+
+    dir[dirCnt].nextTo.push_back(&dir[pathIdx]);
+    dir[pathIdx].nextTo.push_back(&dir[dirCnt]);
+
     dirCnt++;
 }
 
 void makeLink(char path1[], char path2[])
 {
-    dir[pathMap[path2]].next.push_back(&dir[pathMap[path1]]);
+    int path1Idx = pathMap[path1];
+    int path2Idx = pathMap[path2];
+
+    dir[path2Idx].nextTo.push_back(&dir[path1Idx]);
+
+    updateSafeTime(path2Idx);
 }
 
 void makeSystemFile(char path[])
 {
-    dirDFS("/");
+    int pathIdx = pathMap[path];
+    dir[pathIdx].safeTime = 0;
+
+    updateSafeTime(pathIdx);
 }
 
+// safest directory path;
 void findDownloadDir(char downloadPath[])
 {
+    int maxIdx = -1;
+    int maxSafeTime = -1;
+    for (int i = 0; i < dirCnt; i++)
+    {
+        if (maxSafeTime < dir[i].safeTime)
+        {
+            maxSafeTime = dir[i].safeTime;
+            maxIdx = i;
+        }
+    }
+    strcpy(downloadPath, dir[maxIdx].name.c_str());
 }
 
 /////////////////////////////////////////////////////////////////////////

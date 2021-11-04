@@ -10,68 +10,229 @@
 
 using namespace std;
 
-#define MAX_MAP_SIZE (500)
-#define MAX_PIC_SIZE (8)
-
 #define CMD_INIT (100)
 #define CMD_FINDPOSITION (200)
 #define CMD_UPDATEMAP (300)
+
+#include <algorithm>
+#include <list>
+#include <unordered_map>
+
+using namespace std;
+
+#define MAX_MAP_SIZE (500)
+#define MAX_PIC_SIZE (8)
+
+const int OFFSET = 16384;
+#define MAX_N (500)
+#define MAX_P (8)
 
 struct RESULT
 {
     int r, c;
 };
 
-const int MAX_HASH = 2 ^ 15 + 1;
-const int OFFSET = 16384;
+int MAP[MAX_N][MAX_N];
+const int MAX_HASH = 32769;
+typedef pair<int, int> POINT;
+POINT points[MAX_N * MAX_N * 2];
+int point_counter;
+
 int N;
 int M;
 
-int MAP[MAX_MAP_SIZE][MAX_MAP_SIZE];
+// typedef unordered_map<int, list<POINT *>> HashMap;
+typedef unordered_map<int, list<int>> HashMap;
+HashMap HMAP;
 
-typedef pair<int, int> POINT;
-POINT points[MAX_MAP_SIZE * MAX_MAP_SIZE];
-
-int pointsCnt;
-unordered_map<int, list<POINT *>> pointsMap;
-
-void init(int n, int m, int mMap[MAX_MAP_SIZE][MAX_MAP_SIZE])
+struct Node
 {
-    ::N = n;
-    ::M = m;
-    pointsCnt = 0;
-    pointsMap.clear();
+    int r;
+    int c;
+    Node *next;
+    Node *prev;
+};
 
-    for (int r = 0; r < N; r++)
+Node nodes[2500000];
+int node_cnt;
+Node *getNode(int r, int c)
+{
+    Node *temp = &nodes[node_cnt++];
+    temp->r = r;
+    temp->c = c;
+    temp->next = 0;
+    temp->prev = 0;
+    return temp;
+}
+
+struct MyHash
+{
+    Node *head;
+    void init()
     {
-        for (int c = 0; c < N; c++)
+        head = 0;
+    }
+
+    void addNode(Node *node)
+    {
+        if (head)
         {
-            if (mMap[r][c] + OFFSET == 29404)
+            node->next = head;
+            head->prev = node;
+        }
+        head = node;
+    }
+    Node *SearchNode(int r, int c)
+    {
+        Node *curr = head;
+        while (curr)
+        {
+            if (curr->r == r && curr->c == c)
             {
-                cout << r << "," << c << "  "
-                     << " pVal=" << mMap[r][c] + OFFSET << endl;
+                return curr;
             }
-            MAP[r][c] = mMap[r][c] + OFFSET;
-            points[pointsCnt].first = r;
-            points[pointsCnt].second = c;
-            pointsMap[MAP[r][c]].push_back(&points[pointsCnt]);
-            pointsCnt++;
+            curr = curr->next;
+        }
+        return 0;
+    }
+
+    void removeNode(Node *node)
+    {
+        if (head == node)
+        {
+            head = head->next;
+            node->next = 0;
+            node->prev = 0;
+            node = 0;
+            return;
+        }
+        if (node->prev)
+        {
+            node->prev->next = node->next;
+        }
+        if (node->next)
+        {
+            node->next->prev = node->prev;
+        }
+        node->next = 0;
+        node->prev = 0;
+        node = 0;
+    }
+};
+MyHash myH[MAX_HASH];
+
+struct PICS
+{
+    int PIC[MAX_P][MAX_P];
+};
+PICS pics[4];
+
+bool isValid(int r, int c)
+{
+    if (r >= 0 && r < N && c >= 0 && c < N)
+        return true;
+    return false;
+}
+void init(int N, int M, int mMap[MAX_N][MAX_N])
+{
+    ::N = N;
+    ::M = M;
+    point_counter = 0;
+    // HMAP.clear();
+    for (register int i = 0; i < MAX_HASH; i++)
+    {
+        myH[i].init();
+    }
+    for (register int r = 0; r < N; r++)
+    {
+        for (register int c = 0; c < N; c++)
+        {
+            MAP[r][c] = mMap[r][c] + 16384;
+            // points[point_counter] = {r, c};
+            // HMAP[MAP[r][c]].push_back(point_counter);
+            // point_counter++;
+            Node *t = getNode(r, c);
+            myH[MAP[r][c]].addNode(t);
         }
     }
 }
 
-struct PICS
+bool FindMatch(int r, int c, int pix[MAX_P][MAX_P], int mValue, RESULT *ret)
 {
-    int PIX[MAX_PIC_SIZE][MAX_PIC_SIZE];
-};
-PICS P[4];
+    if (mValue < 0 || mValue >= MAX_HASH)
+    {
+        return false;
+    }
+    // HashMap::iterator hmapItr = HMAP.find(mValue);
+
+    // if (hmapItr == HMAP.end())
+    //     return false;
+    Node *curr = myH[mValue].head;
+    if (curr == 0)
+        return false;
+
+    // list<POINT *>::iterator listPointItr = hmapItr->second.begin();
+    // list<int>::iterator listPointItr = hmapItr->second.begin();
+    //while (listPointItr != hmapItr->second.end())
+    while (curr)
+    {
+        // int r1 = points[(*listPointItr)].first;
+        // int c1 = points[(*listPointItr)].second;
+
+        int r1 = curr->r;
+        int c1 = curr->c;
+        int r2 = r1 + M - 1;
+        int c2 = c1 + M - 1;
+        if (false == isValid(r2, c2))
+        {
+            // listPointItr++;
+            curr = curr->next;
+        }
+        else
+        {
+            int y, x, m, n;
+            if (abs(pix[0][0] - MAP[r1][c1]) < 256 &&
+                abs(pix[0][M - 1] - MAP[r1][c2]) < 256 &&
+                abs(pix[M - 1][0] - MAP[r2][c1]) < 256 &&
+                abs(pix[M - 1][M - 1] - MAP[r2][c2]) < 256)
+            {
+                bool status = true;
+
+                int k = 0;
+                for (y = r1; y < r2; y++)
+                {
+                    int l = 0;
+                    for (x = c1; x < c2; x++)
+                    {
+                        if (abs(pix[k][l] - MAP[y][x]) >= 256)
+                        {
+                            return false;
+                        }
+                        l++;
+                    }
+                    k++;
+                }
+                if (status == true)
+                {
+                    ret->r = r1;
+                    ret->c = c1;
+                    return true;
+                }
+            }
+            // listPointItr++;
+            curr = curr->next;
+        }
+    }
+    return false;
+}
+
 void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
 {
     for (int i = 0; i < M; i++)
     {
         for (int j = 0; j < M; j++)
         {
-            P[0].PIX[i][j] = mPic[i][j] + OFFSET;
+            pics[0].PIC[i][j] = mPic[i][j] + OFFSET;
             // cout << P[0].PIX[i][j] << " ";
         }
         // cout << endl;
@@ -85,7 +246,7 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         k = M - 1;
         for (int j = 0; j < M; j++)
         {
-            P[1].PIX[i][j] = P[0].PIX[k][l];
+            pics[1].PIC[i][j] = pics[0].PIC[k][l];
             // cout << P[1].PIX[i][j] << " ";
             k--;
         }
@@ -101,7 +262,7 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         k = M - 1;
         for (int j = 0; j < M; j++)
         {
-            P[2].PIX[i][j] = P[1].PIX[k][l];
+            pics[2].PIC[i][j] = pics[1].PIC[k][l];
             // cout << P[2].PIX[i][j] << " ";
             k--;
         }
@@ -117,7 +278,7 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
         k = M - 1;
         for (int j = 0; j < M; j++)
         {
-            P[3].PIX[i][j] = P[2].PIX[k][l];
+            pics[3].PIC[i][j] = pics[2].PIC[k][l];
             // cout << P[3].PIX[i][j] << " ";
             k--;
         }
@@ -127,122 +288,45 @@ void rotateP(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
     // cout << endl;
 }
 
-bool valid(int r, int c)
+void rotate(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
 {
-    if (r >= 0 && r < MAX_PIC_SIZE && c >= 0 && c < MAX_PIC_SIZE)
-        return true;
-    return false;
-}
-
-bool checkPic(int pix[MAX_PIC_SIZE][MAX_PIC_SIZE], int r, int c)
-{
-    bool match = false;
-    // N is map; M is pix; (r,c) MAP co-ordinates;
-    int r2 = r + M - 1;
-    int c2 = c + M - 1;
-    // invalidate r2, c2;
-    if (valid(r2, c2) == false)
+    for (register int r = 0; r < M; ++r)
     {
-        return false;
-    }
-    // all four cornors are a match
-    if (abs(pix[0][0] - MAP[r][c]) < 256 &&
-        abs(pix[0][M - 1] - MAP[r][c2]) < 256 &&
-        abs(pix[M - 1][0] - MAP[r2][c]) < 256 &&
-        abs(pix[M - 1][M - 1] - MAP[r2][c2]) < 256)
-    {
-        match = true;
-        int k = 0;
-        int l = 0;
-        for (int x = r; x < r2; x++)
+        for (register int c = 0; c < M; ++c)
         {
-            l = 0;
-            for (int y = c; y < c2; y++)
-            {
-                if (abs(pix[k][l] - MAP[x][y]) >= 256)
-                {
-                    match = false;
-                    return false;
-                }
-                l++;
-            }
-            k++;
-        }
-        if (match == true)
-        {
-            return true;
+            pics[0].PIC[r][c] = mPic[r][c] + +16384;
+            pics[1].PIC[r][c] = mPic[M - 1 - c][r] + +16384;
+            pics[2].PIC[r][c] = mPic[M - 1 - r][M - 1 - c] + 16384;
+            pics[3].PIC[r][c] = mPic[c][M - 1 - r] + 16384;
         }
     }
-    return false;
 }
 
-bool findWithPVal(int pVal, int pix[MAX_PIC_SIZE][MAX_PIC_SIZE], RESULT *ret)
-{
-    int r = 0;
-    int c = 0;
-    unordered_map<int, list<POINT *>>::iterator it = pointsMap.find(pVal);
-    if (it != pointsMap.end())
-    {
-        list<POINT *> plist = it->second;
-        list<POINT *>::iterator itr = plist.begin();
-        POINT *p = 0;
-        while (itr != plist.end())
-        {
-            p = *itr;
-            r = p->first;
-            c = p->second;
-            if (checkPic(pix, r, c) == true)
-            {
-                ret->r = r;
-                ret->c = c;
-                return true;
-            }
-            itr++;
-        }
-    }
-    return false;
-}
-
-RESULT findPosition(int mPic[MAX_PIC_SIZE][MAX_PIC_SIZE])
+RESULT findPosition(int mPic[MAX_P][MAX_P])
 {
     RESULT ret;
-
     ret.r = ret.c = -1;
-    // 1. Rotate Pic 0, 90, 180, 270
-    rotateP(mPic);
+    int cnt = 0;
+    rotate(mPic);
 
-    // for each intensity
-    int r = 0;
-    int c = 0;
-    for (int j = 0; j < 4; j++)
+    for (register int idx = 0; idx < 4; idx++)
     {
-        for (int i = 0; i < 256; i++)
+        for (register int i = 0; i < 256; i++)
         {
-            int pVal = P[j].PIX[0][0] + i;
-            if (pVal == 590) //29404)
+            bool status = false;
+            ret.r = -1;
+            ret.c = -1;
+            int mValue = pics[idx].PIC[0][0] + i;
+            status = FindMatch(0, 0, pics[idx].PIC, mValue, &ret);
+            if (status == true)
             {
-                cout << "start from here" << endl;
+                return ret;
             }
-
-            unordered_map<int, list<POINT *>>::iterator it = pointsMap.find(pVal);
-            if (it != pointsMap.end())
+            mValue = pics[idx].PIC[0][0] - i;
+            status = FindMatch(0, 0, pics[idx].PIC, mValue, &ret);
+            if (status == true)
             {
-                list<POINT *> plist = it->second;
-                list<POINT *>::iterator itr = plist.begin();
-                POINT *p = 0;
-                while (itr != plist.end())
-                {
-                    p = *itr;
-                    r = p->first;
-                    c = p->second;
-                    if (checkPic(pix, r, c) == true)
-                    {
-                        ret->r = r;
-                        ret->c = c;
-                        return true;
-                    }
-                    itr++;
-                }
+                return ret;
             }
         }
     }
@@ -254,31 +338,49 @@ struct Compare
     int r_;
     int c_;
     Compare(int r, int c) : r_(r), c_(c){};
-    bool operator()(POINT *p)
+    bool operator()(POINT *p1)
     {
-        if (p->first == r_ && p->second == c_)
+        if (r_ == p1->first && c_ == p1->second)
         {
             return true;
         }
-        return false;
+        else
+        {
+            return false;
+        }
     }
 };
 
 void updateMap(int r, int c, int mNewValue)
 {
-    int oldValue = MAP[r][c];
-    unordered_map<int, list<POINT *>>::iterator it = pointsMap.find(oldValue);
-    if (it != pointsMap.end())
+    int val = MAP[r][c];
+    Node *curr = myH[val].SearchNode(r, c);
+    HashMap::iterator hmapItr = HMAP.find(val);
+    // if (hmapItr != HMAP.end())
+    if (curr)
     {
-        list<POINT *>::iterator lit = find_if(it->second.begin(), it->second.end(), Compare(r, c));
-        if (lit != it->second.end())
-        {
-            it->second.erase(lit);
-        }
-        points[pointsCnt] = {r, c};
-        pointsMap[mNewValue + OFFSET].push_back(&points[pointsCnt]);
-        pointsCnt++;
+        myH[val].removeNode(curr);
+        // list<POINT *>::iterator listPointItr = hmapItr->second.begin();
+        // list<int>::iterator listPointItr = hmapItr->second.begin();
+        // if (listPointItr != hmapItr->second.end())
+        // {
+        //     if (points[(*listPointItr)].first == r && points[(*listPointItr)].second == c)
+        //     {
+        //         hmapItr->second.erase(listPointItr);
+        //     }
+        // }
+        // list<POINT *>::iterator lit = find_if(hmapItr->second.begin(), hmapItr->second.end(), Compare(r, c));
+        // if (lit != hmapItr->second.end())
+        // {
+        //     hmapItr->second.erase(lit);
+        // }
     }
+    int mValue = mNewValue + 16384;
+    MAP[r][c] = mValue;
+    myH[mValue].addNode(getNode(r, c));
+    // points[point_counter] = {r, c};
+    // HMAP[mValue].push_back(point_counter);
+    // point_counter++;
 }
 
 /////////////////////////////////////////////////////////////////////////
