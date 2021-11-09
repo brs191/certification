@@ -338,8 +338,6 @@ int cmdInfect(int tID)
 
     Data *cur = map[tID];
     cur->infect(inc);
-    Data *parent = cur->parent;
-
     return cur->file_size;
 }
 
@@ -348,7 +346,6 @@ int cmdRecover(int tID)
     Data *cur = map[tID];
 
     cur->recover();
-    Data *parent = cur->parent;
 
     return cur->file_size;
 }
