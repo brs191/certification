@@ -1,86 +1,331 @@
 #include <iostream>
-#include <string>
-#include <list>
+#include <vector>
 #include <unordered_map>
 
 using namespace std;
 
-const int MAXOBJ = 10001;
-const string delim = "/";
-
-struct DIRINFO
+enum COMMAND
 {
-    string path;
-    list<DIRINFO *> nextTo;
+    CMD_ADD = 1,
+    CMD_MOVE,
+    CMD_INFECT,
+    CMD_RECOVER,
+    CMD_REMOVE
 };
 
-DIRINFO dir[MAXOBJ];
-int dirCnt;
+const int MAX_N = 20007;
+const int _DIR = 100;
+const int _FILE = 200;
 
-unordered_map<string, int> pathMap;
+struct Node
+{
+    int id;
+    int type;
+    int file_cnt;
+    int file_size;
+    int file_size_org;
+
+    Node *parent;
+    vector<Node *> dirs;
+    vector<Node *> files;
+
+    Node()
+    {
+        id = type = file_cnt = file_size = file_size_org = 0;
+        parent = nullptr;
+        dirs.clear();
+        files.clear();
+    }
+
+    Node(int _id, int _fileSize)
+    {
+        id = _id;
+        file_size = file_size_org = _fileSize;
+
+        if (file_size == 0)
+        {
+            type = _DIR;
+            file_cnt = 0;
+        }
+        else
+        {
+            type = _FILE;
+            file_cnt = 1;
+        }
+        parent = nullptr;
+        dirs.clear();
+        files.clear();
+    }
+
+    void add(Node *&_new)
+    {
+        if (_new->type == _FILE)
+        {
+            files.push_back(_new);
+        }
+        else
+        {
+            dirs.push_back(_new);
+        }
+        _new->parent = this;
+        refresh();
+    }
+
+    void erase(Node *&_child)
+    {
+        vector<Node *>::iterator itr = dirs.begin();
+        while (itr != dirs.end())
+        {
+            Node *t = *itr;
+            if (_child->id == t->id)
+            {
+                dirs.erase(itr);
+                break;
+            }
+            itr++;
+        }
+
+        itr = files.begin();
+        while (itr != files.end())
+        {
+            Node *t = *itr;
+            if (_child->id == t->id)
+            {
+                files.erase(itr);
+                break;
+            }
+            itr++;
+        }
+
+        _child->parent = nullptr;
+        refresh();
+    }
+
+    void clear()
+    {
+        dirs.clear();
+        files.clear();
+        parent = nullptr;
+        file_size = file_size_org = file_cnt = 0;
+    }
+
+    void infect(int changeSize)
+    {
+        if (this->type == _DIR)
+        {
+            for (int i = 0; i < files.size(); i++)
+            {
+                files[i]->file_size += changeSize;
+            }
+
+            for (int i = 0; i < dirs.size(); i++)
+            {
+                dirs[i]->infect(changeSize);
+            }
+
+            refresh();
+        }
+        else
+        {
+            file_size += changeSize;
+            parent->refresh();
+        }
+    }
+
+    void recover()
+    {
+        file_size = file_size_org;
+        if (type == _DIR)
+        {
+            for (int i = 0; i < files.size(); i++)
+            {
+                files[i]->file_size = files[i]->file_size_org;
+            }
+            for (int i = 0; i < dirs.size(); i++)
+            {
+                dirs[i]->recover();
+            }
+            refresh();
+        }
+        else
+        {
+            parent->refresh();
+        }
+    }
+
+    void refresh()
+    {
+        file_cnt = file_size = file_size = 0;
+        for (int i = 0; i < dirs.size(); i++)
+        {
+            file_cnt += dirs[i]->file_cnt;
+            file_size_org += dirs[i]->file_size_org;
+            file_size += dirs[i]->file_size;
+        }
+
+        for (int i = 0; i < files.size(); i++)
+        {
+            file_cnt += 1;
+            file_size_org += files[i]->file_size_org;
+            file_size += files[i]->file_size;
+        }
+
+        if (parent != nullptr)
+        {
+            parent->refresh();
+        }
+    }
+};
+Node a[MAX_N];
+int n;
+
+unordered_map<int, Node *> map;
 
 void init()
 {
-    pathMap.clear();
-    for (int i = 0; i < dirCnt; i++)
+    map.clear();
+
+    n = 0;
+    a[n] = Node(10000, 0);
+
+    map[10000] = &a[n];
+    n += 1;
+}
+
+int cmdAdd(int newID, int pID, int fileSize)
+{
+    a[n] = Node(newID, fileSize);
+    map[newID] = &a[n];
+
+    Node *parent = map[pID];
+    Node *curr = &a[n];
+    parent->add(curr);
+
+    n += 1;
+    return parent->file_size;
+}
+
+int cmdMove(int tID, int pID)
+{
+    Node *curr = map[tID];
+    curr->parent->erase(curr);
+
+    Node *parent = map[pID];
+    parent->add(curr);
+    return parent->file_size;
+}
+
+int cmdRemove(int tID)
+{
+    Node *curr = map[tID];
+    int ret = curr->file_size;
+
+    if (tID == 10000)
     {
-        dir[i].nextTo.clear();
+        curr->clear();
     }
-    dir[0].path = delim;
-    pathMap[delim] = 0; // 0th element is the parent;
-    dirCnt = 1;         // root by default
-}
-
-void makedir(char path[], char dirname[])
-{
-
-    // 1. add new dirname with full path in Dir List
-    dir[dirCnt].path = (string)path + dirname + delim;
-    // 2. update pathMap of new dirname with full path with DirList index
-    pathMap[dir[dirCnt].path] = dirCnt;
-
-    // 3. add dirname address as the child to path;
-    dir[pathMap[path]].nextTo.push_back(&dir[dirCnt]);
-
-    // 4. add path i.e the parent to the nextTo list. (first element is the parent)
-    dir[dirCnt].nextTo.push_back(&dir[pathMap[path]]);
-
-    dirCnt++;
-}
-
-void makeLine(char path1[], char path2[])
-{
-    dir[pathMap[path2]].next.push_back(&dir[pathMap[path1]]);
-}
-
-void dirDFS(char path[])
-{
-    int pIdx = pathMap[path];
-    DIRINFO *curr = 0;
-    while (pIdx < dirCnt)
+    else
     {
-        curr = &dir[pIdx];
-        for (auto it = curr->nextTo.begin(); it != curr->nextTo.end(); it++)
+        curr->parent->erase(curr);
+    }
+    return ret;
+}
+
+int cmdInfect(int tID)
+{
+    Node *root = map[10000];
+
+    if (root->file_cnt == 0)
+    {
+        return 0;
+    }
+
+    int changeSize = root->file_size / root->file_cnt;
+    Node *curr = map[tID];
+
+    curr->infect(changeSize);
+    return curr->file_size;
+}
+
+int cmdRecover(int tID)
+{
+    Node *curr = map[tID];
+    curr->recover();
+
+    return curr->file_size;
+}
+
+static int run(int score)
+{
+    int N;
+    scanf("%d", &N);
+
+    for (int i = 0; i < N; i++)
+    {
+        int cmd;
+        int ret = 0;
+        scanf("%d", &cmd);
+
+        switch (cmd)
         {
-            DIRINFO *temp = *it;
-            cout << temp->path << " ";
+        case CMD_ADD:
+        {
+            int id, pid, fileSize;
+            scanf("%d%d%d", &id, &pid, &fileSize);
+            ret = cmdAdd(id, pid, fileSize);
+            break;
         }
-        cout << endl;
-        pIdx++;
+        case CMD_MOVE:
+        {
+            int id, pid;
+            scanf("%d%d", &id, &pid);
+            ret = cmdMove(id, pid);
+            break;
+        }
+        case CMD_INFECT:
+        {
+            int id;
+            scanf("%d", &id);
+            ret = cmdInfect(id);
+            break;
+        }
+        case CMD_RECOVER:
+        {
+            int id;
+            scanf("%d", &id);
+            ret = cmdRecover(id);
+            break;
+        }
+        case CMD_REMOVE:
+        {
+            int id;
+            scanf("%d", &id);
+            ret = cmdRemove(id);
+            break;
+        }
+        }
+
+        int checkSum;
+        scanf("%d", &checkSum);
+        if (ret != checkSum)
+            score = 0;
     }
+    return score;
 }
 
 int main()
 {
-    init();
+    setbuf(stdout, NULL);
+    freopen("sample_input.txt", "r", stdin);
 
-    makedir("/", "a");
-    makedir("/", "b");
-    makedir("/a/", "c");
-    makedir("/b/", "d");
-    makedir("/b/", "e");
-
-    dirDFS("/");
+    int TC, score;
+    scanf("%d%d", &TC, &score);
+    for (int t = 1; t <= TC; t++)
+    {
+        init();
+        int ret = run(score);
+        printf("#%d %d\n", t, ret);
+    }
 
     return 0;
 }
